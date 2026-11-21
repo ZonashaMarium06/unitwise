@@ -14,6 +14,7 @@ RAW_DIR = Path("data/raw/precon")
 REPORT_DIR = Path("reports")
 MIN_ZERO_RUN = 5      # minutes: shorter zero stretches are treated as blips
 MIN_FROZEN_RUN = 30   # minutes: identical non-zero readings this long are suspicious
+ZERO_KW = 0.0005
 
 
 def find_runs(mask: pd.Series) -> pd.DataFrame:
@@ -36,13 +37,13 @@ def audit_outages(path: Path):
     sub_cols = [c for c in df.columns if c not in ("house_id", TOTAL_COL)]
 
     # 1. Zero stretches
-    zero = usage == 0
+    zero = usage <= ZERO_KW
     zero_runs = find_runs(zero)
     zero_events = zero_runs[zero_runs.minutes >= MIN_ZERO_RUN].copy()
     zero_events.insert(0, "kind", "zero")
 
     # 2. Frozen stretches: the same non-zero value repeated
-    frozen = (usage.diff() == 0) & (usage != 0)
+    frozen = (usage.diff() == 0) & ~zero
     frozen_runs = find_runs(frozen)
     frozen_events = frozen_runs[frozen_runs.minutes >= MIN_FROZEN_RUN].copy()
     frozen_events.insert(0, "kind", "frozen")
